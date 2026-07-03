@@ -4,8 +4,9 @@ using namespace std;
 void foo(int x)
 {
     if (x < 0)
-        throw 1; // 抛出整型异常
+        // throw 1; // 抛出整型异常
         // throw "error";
+        throw std::logic_error("x out of range!");
     cout << "x = " << x << endl;
 }
 

@@ -8,6 +8,8 @@ class List
 {
 public:
     List();
+    List(const List& other);
+    List& operator=(const List& other);
     ~List();
     void push_back(Type x);
     void push_front(Type x);

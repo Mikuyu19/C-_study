@@ -1,11 +1,46 @@
 #include "list.hpp"
 #include <iostream>
+#include <stdexcept>
 using namespace std;
 
 List::List() : _head(nullptr), _tail(nullptr), _size(0) {}
 
+List::List(const List& other) : _head(nullptr), _tail(nullptr), _size(0)
+{
+    Node *p = other._head;
+    while (p != nullptr)
+    {
+        push_back(p->_data);
+        p = p->_next;
+    }
+}
+
+List& List::operator=(const List& other)
+{
+    if (this == &other)
+        return *this;
+
+    while (!empty())
+    {
+        pop_front();
+    }
+
+    Node *p = other._head;
+    while (p != nullptr)
+    {
+        push_back(p->_data);
+        p = p->_next;
+    }
+
+    return *this;
+}
+
 List::~List()
 {
+    while (!empty())
+    {
+        pop_front();
+    }
 }
 
 void List::push_back(Type x)
@@ -94,7 +129,7 @@ Type List::back() const
     // 返回最后一个结点
     if (_size == 0)
     {
-        return NULL;
+        return Type();
     }
     return _tail->_data;
 }
@@ -103,7 +138,7 @@ Type List::front() const
     // 返回第一个结点
     if (_size == 0)
     {
-        return NULL;
+        return Type();
     }
     return _head->_data;
 }

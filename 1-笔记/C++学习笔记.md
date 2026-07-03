@@ -2102,3 +2102,889 @@ Dir 这部分代码依赖 Linux/POSIX 的 dirent.h，在 Windows 原生环境下
 ```text
 explicit 管转换，析构函数管收尾，new/delete 管堆内存，string 管字符串，Dir 类把目录操作封装成对象。
 ```
+
+---
+
+# Day 5：异常、this、static 和 BMP 图片显示
+
+今天目标：继续完善类的封装，掌握异常处理、`this` 指针、静态成员，并用类封装屏幕绘制和 BMP 图片显示。
+
+对应代码：
+
+```text
+2-代码/day5-异常/list.hpp
+2-代码/day5-异常/list.cpp
+2-代码/day5-异常/dir.hpp
+2-代码/day5-异常/dir.cpp
+2-代码/day5-异常/24-异常示例.cpp
+2-代码/day5-异常/25-this指针.cpp
+2-代码/day5-异常/26-static成员示例.cpp
+2-代码/day5-异常/tongxun_v3.cpp
+2-代码/day5-异常/28-绘制位图/
+```
+
+---
+
+## 1、List 链表补充
+
+Day5 的 `List` 链表用来保存字符串，例如文件名：
+
+```cpp
+using Type = std::string;
+```
+
+常用接口：
+
+```cpp
+void push_back(Type x);
+void push_front(Type x);
+void pop_back();
+void pop_front();
+int size() const;
+bool empty() const;
+Type getElem(int n) const;
+```
+
+按位置获取元素：
+
+```cpp
+Type List::getElem(int n) const
+{
+    if (n < 1 or n > _size)
+        throw std::out_of_range("n out of range!");
+
+    Node *p = _head;
+    for (int i = 1; i < n; i++)
+    {
+        p = p->_next;
+    }
+
+    return p->_data;
+}
+```
+
+说明：
+
+```text
+1. 当前链表下标从 1 开始。
+2. 获取元素前要判断范围。
+3. 越界时抛出 std::out_of_range，避免访问空指针。
+```
+
+---
+
+## 2、Dir 类筛选 BMP 文件
+
+`Dir` 类负责打开目录、读取目录项、筛选 BMP 文件。
+
+主要接口：
+
+```cpp
+class Dir
+{
+public:
+    Dir(std::string path);
+    ~Dir();
+
+    List getAllFilenames();
+    List getBitmaps();
+    bool isBitmap(std::string pathfile);
+};
+```
+
+构造函数打开目录：
+
+```cpp
+_pdir = opendir(_path.c_str());
+if (_pdir == nullptr)
+    throw std::runtime_error("open dir error");
+```
+
+析构函数关闭目录：
+
+```cpp
+closedir(_pdir);
+```
+
+筛选 BMP 文件：
+
+```cpp
+bool Dir::isBitmap(std::string pathfile)
+{
+    return pathfile.find(".bmp") != std::string::npos;
+}
+```
+
+使用方式：
+
+```cpp
+Dir dir("./");
+List list = dir.getBitmaps();
+list.print();
+```
+
+一句话理解：
+
+```text
+Dir 把 opendir、readdir、closedir 封装成对象操作，并用 List 保存读取到的文件名。
+```
+
+---
+
+## 3、异常处理
+
+异常用于处理运行时错误。
+
+抛出异常：
+
+```cpp
+throw std::logic_error("x out of range!");
+```
+
+捕获异常：
+
+```cpp
+try
+{
+    foo(-1);
+}
+catch (int err)
+{
+    cout << "捕获int类型异常" << endl;
+}
+catch (double err)
+{
+    cout << "捕获double类型异常" << endl;
+}
+```
+
+如果抛出的是标准异常，例如 `std::logic_error`，通常这样接：
+
+```cpp
+try
+{
+    foo(-1);
+}
+catch (const std::exception& e)
+{
+    cout << e.what() << endl;
+}
+```
+
+标准异常类型需要头文件：
+
+```cpp
+#include <stdexcept>
+```
+
+常见异常：
+
+```text
+std::logic_error      逻辑错误
+std::runtime_error    运行时错误
+std::out_of_range     越界错误
+std::bad_alloc        内存申请失败
+```
+
+注意：
+
+```text
+1. throw 后面的代码不会继续执行。
+2. catch 按顺序匹配异常类型。
+3. 没有被捕获的异常会继续向上抛出。
+4. 析构函数中不建议抛异常。
+```
+
+---
+
+## 4、this 指针
+
+对象调用非静态成员函数时，编译器会自动把对象地址传给函数，这个隐藏参数就是 `this`。
+
+示例：
+
+```cpp
+class Demo
+{
+public:
+    void setX(int x)
+    {
+        _x = x;       // 等价于 this->_x = x;
+    }
+
+    int getX() const
+    {
+        return _x;    // 等价于 return this->_x;
+    }
+
+private:
+    int _x;
+};
+```
+
+理解：
+
+```text
+this 指向当前调用成员函数的那个对象。
+```
+
+类型：
+
+```text
+普通成员函数中：this 是 类名* const
+const 成员函数中：this 是 const 类名* const
+```
+
+补充：
+
+```text
+成员变量存放在每个对象里。
+成员函数存放在代码段，同类型对象共用一份。
+this 用来区分当前函数正在操作哪个对象。
+```
+
+空类对象：
+
+```text
+没有数据成员的对象也占空间，通常 sizeof(空类) == 1。
+原因是每个对象都需要有唯一地址。
+```
+
+---
+
+## 5、static 静态成员
+
+`static` 修饰类成员时，表示这个成员属于类，而不是属于某一个对象。
+
+静态成员变量：
+
+```cpp
+class Demo
+{
+private:
+    static int cnt;
+};
+
+int Demo::cnt = 0;
+```
+
+特点：
+
+```text
+1. 所有对象共享同一份静态成员变量。
+2. 不占用普通对象的成员空间。
+3. 必须在类外单独定义和初始化。
+```
+
+静态成员函数：
+
+```cpp
+static int getCnt()
+{
+    return cnt;
+}
+```
+
+调用方式：
+
+```cpp
+Demo::getCnt();
+```
+
+注意：
+
+```text
+1. 静态成员函数没有 this 指针。
+2. 静态成员函数不能直接访问普通成员变量。
+3. 静态成员函数不能写成 const 成员函数。
+```
+
+Day5 示例中用 `cnt` 统计当前 `Demo` 对象数量：
+
+```text
+构造函数中 cnt++
+析构函数中 cnt--
+```
+
+---
+
+## 6、通讯录封装
+
+`tongxun_v3.cpp` 把通讯录封装成 `Addressbooks` 类型。
+
+成员数据：
+
+```text
+Person personArray[MAX]   联系人数组
+int m_Size                当前联系人数量
+```
+
+主要接口：
+
+```text
+addPerson()       添加联系人
+showPerson()      显示联系人
+isExist()         判断联系人是否存在
+deletePerson()    删除联系人
+findPerson()      查找联系人
+modifyPerson()    修改联系人
+cleanPerson()     清空联系人
+```
+
+封装思想：
+
+```text
+1. Person 结构体放在 Addressbooks 内部，只服务通讯录。
+2. 联系人数组和数量设为 private，外部不能随便修改。
+3. 外部只能通过 public 成员函数操作通讯录。
+```
+
+---
+
+## 7、屏幕与图形类封装
+
+`28-绘制位图` 目录把屏幕绘制拆成多个类。
+
+类的分工：
+
+```text
+Point   保存坐标 x、y
+Color   保存 RGB 颜色，并转换成整数颜色值
+Screen  打开 /dev/fb0，mmap 映射显存，提供 drawPoint
+Rect    保存矩形宽高、位置、颜色，并绘制矩形
+Circle  保存圆心、半径、颜色，并绘制圆
+Bitmap  读取 BMP 文件，并绘制图片
+```
+
+屏幕绘制核心：
+
+```cpp
+*(_addr + _w * y + x) = color;
+```
+
+含义：
+
+```text
+显存可以看成一维数组。
+第 y 行第 x 列的位置 = _addr + _w * y + x。
+```
+
+构造函数适合做初始化：
+
+```cpp
+Screen screen("/dev/fb0");
+```
+
+使用方式：
+
+```cpp
+Bitmap bmp("./1.bmp");
+bmp.draw(screen);
+```
+
+---
+
+## 8、BMP 图片显示
+
+BMP 是无压缩位图文件，常见 24 位和 32 位格式。
+
+文件关键位置：
+
+```text
+0x00    文件标识，BMP 文件以 'B' 'M' 开头
+0x0A    像素数组起始偏移
+0x12    图片宽度
+0x16    图片高度
+0x1C    色深
+0x1E    压缩方式，0 表示无压缩
+```
+
+像素格式：
+
+```text
+24 位 BMP：B G R
+32 位 BMP：B G R A
+```
+
+每行补齐：
+
+```text
+BMP 每一行字节数必须是 4 的倍数，不足部分要跳过。
+```
+
+方向判断：
+
+```text
+width  > 0：每行从左往右保存
+width  < 0：每行从右往左保存
+height > 0：整张图从下往上保存
+height < 0：整张图从上往下保存
+```
+
+绘制坐标：
+
+```cpp
+int x = _w > 0 ? j : width - 1 - j;
+int y = _h > 0 ? height - 1 - i : i;
+screen.drawPoint(x + x0, y + y0, Color(r, g, b).toInt());
+```
+
+说明：
+
+```text
+如果 height > 0，BMP 第一行像素其实是图片最下面一行，
+所以要画到屏幕的 height - 1 - i 行，避免图片上下颠倒。
+```
+
+---
+
+## 9、循环播放 BMP 图片
+
+把一个目录中的 BMP 文件名读取出来，保存到 `List`，再循环显示：
+
+```cpp
+Dir dir("./bmp");
+List bmp_list = dir.getBitmaps();
+Screen screen("/dev/fb0");
+
+while (true)
+{
+    for (int i = 1; i <= bmp_list.size(); i++)
+    {
+        std::string filename = bmp_list.getElem(i);
+        Bitmap bmp(filename);
+        bmp.draw(screen);
+        sleep(1);
+    }
+}
+```
+
+运行方式：
+
+```bash
+./a.out ./bmp
+./a.out ./bmp 2
+```
+
+说明：
+
+```text
+第 1 个参数：BMP 文件夹路径。
+第 2 个参数：每张图片显示的秒数。
+```
+
+---
+
+## 10、Day5 总结
+
+```text
+1. List::getElem 通过范围判断和异常避免越界访问。
+2. Dir 类封装目录读取，并筛选 BMP 文件。
+3. throw 抛异常，try/catch 捕获异常。
+4. this 指针表示当前对象地址，由编译器自动传入。
+5. static 成员属于类，所有对象共享，没有 this。
+6. 通讯录示例体现了 private 数据 + public 接口的封装。
+7. Screen 类封装了 framebuffer 打开、mmap 映射和画点。
+8. Rect、Circle、Bitmap 都通过 draw(Screen&) 绘制到屏幕。
+9. BMP 像素按 BGR 保存，每行 4 字节对齐。
+10. BMP 高度为正时，像素数据从下往上保存，绘制时要翻转 y 坐标。
+```
+
+一句话记忆：
+
+```text
+Day5 的重点是把错误处理、对象自身 this、类共享 static 和屏幕图片显示，都放进类的封装思路里理解。
+```
+
+---
+
+# Day 6：拷贝构造、深浅拷贝和类型转换
+
+今天目标：理解对象复制时会发生什么，掌握拷贝构造函数、深拷贝与浅拷贝、`delete/default`，并认识 C++ 的四种显式类型转换。
+
+对应代码：
+
+```text
+2-代码/day6-/29-拷贝构造函数示例.cpp
+2-代码/day6-/30-拷贝构造函数示例2.cpp
+2-代码/day6-/31-delete与default示例.cpp
+2-代码/day6-/32-显示类型转换示例.cpp
+```
+
+---
+
+## 1、拷贝构造函数
+
+拷贝构造函数用于用一个已经存在的对象，初始化另一个同类型的新对象。
+
+基本格式：
+
+```cpp
+class Demo
+{
+public:
+    Demo(const Demo& rhs);
+};
+```
+
+说明：
+
+```text
+Demo(const Demo& rhs)
+```
+
+表示参数是本类类型的 `const` 引用，这种构造函数就是拷贝构造函数。
+
+示例：
+
+```cpp
+class Demo
+{
+public:
+    Demo(int x, int y) : _x(x), _y(y) {}
+
+    Demo(const Demo& rhs)
+    {
+        _x = rhs._x;
+        _y = rhs._y;
+        cout << "Demo(const Demo&)" << endl;
+    }
+
+private:
+    int _x;
+    int _y;
+};
+```
+
+如果没有自己写拷贝构造函数，编译器会自动生成一个，默认按成员变量逐个复制。
+
+---
+
+## 2、拷贝构造函数的调用时机
+
+常见调用场景有三种。
+
+### 2.1、用已有对象创建新对象
+
+```cpp
+Demo d1(100, 200);
+
+Demo d2(d1);
+Demo d3{d1};
+Demo d4 = d1;
+```
+
+这些都是用 `d1` 初始化一个新的 `Demo` 对象，会调用拷贝构造函数。
+
+### 2.2、对象作为函数参数按值传递
+
+```cpp
+void foo(Demo d)
+{
+}
+
+Demo d1(100, 200);
+foo(d1);
+```
+
+调用 `foo(d1)` 时，形参 `d` 是一个新对象，需要用 `d1` 拷贝初始化。
+
+### 2.3、函数按值返回对象
+
+```cpp
+Demo foo()
+{
+    Demo d(1, 1);
+    return d;
+}
+```
+
+返回对象时，可能调用拷贝构造函数。
+
+注意：
+
+```text
+现代编译器可能会进行返回值优化，省略某些拷贝构造函数调用。
+所以实际运行时，不一定每次都能看到拷贝构造函数输出。
+```
+
+---
+
+## 3、浅拷贝和深拷贝
+
+### 3.1、浅拷贝
+
+浅拷贝就是简单复制成员变量的值。
+
+如果成员变量是普通类型，例如 `int`、`double`，浅拷贝通常没有问题。
+
+但如果成员变量是指针，浅拷贝只会复制指针地址：
+
+```text
+两个对象的指针成员指向同一块堆内存。
+```
+
+这样会产生问题：
+
+```text
+1. 修改一个对象的数据，可能影响另一个对象。
+2. 两个对象析构时，会对同一块内存 delete 两次。
+3. 程序可能崩溃。
+```
+
+### 3.2、深拷贝
+
+深拷贝是在拷贝对象时，重新申请一块新的内存，再把原对象中的数据复制过去。
+
+示例：
+
+```cpp
+class Demo
+{
+public:
+    Demo(int x, int y)
+    {
+        _x = new int(x);
+        _y = new int(y);
+    }
+
+    ~Demo()
+    {
+        delete _x;
+        delete _y;
+    }
+
+    Demo(const Demo& rhs)
+    {
+        _x = new int(*rhs._x);
+        _y = new int(*rhs._y);
+    }
+
+private:
+    int* _x;
+    int* _y;
+};
+```
+
+这样拷贝后：
+
+```text
+d1._x 和 d2._x 指向不同的内存。
+d1._y 和 d2._y 指向不同的内存。
+两个对象互不影响，析构时也不会重复释放同一块内存。
+```
+
+一句话理解：
+
+```text
+浅拷贝：只复制地址。
+深拷贝：重新申请内存，再复制内容。
+```
+
+---
+
+## 4、delete 和 default 关键字
+
+这里的 `delete` 和释放堆内存的 `delete p;` 不是同一种用法。
+
+### 4.1、= delete
+
+`= delete` 用来删除某些函数，禁止别人调用。
+
+常见用途：禁止对象拷贝。
+
+```cpp
+class Demo
+{
+public:
+    Demo() = default;
+    Demo(const Demo&) = delete;
+};
+
+int main()
+{
+    Demo d1;
+    // Demo d2 = d1;  // 错误，拷贝构造函数被删除
+}
+```
+
+适合场景：
+
+```text
+对象管理独占资源，不希望被复制。
+例如文件描述符、锁、某些硬件资源等。
+```
+
+### 4.2、= default
+
+`= default` 表示要求编译器生成默认版本的函数。
+
+```cpp
+class Demo
+{
+public:
+    Demo() = default;
+};
+```
+
+常见用途：
+
+```text
+1. 明确保留默认构造函数。
+2. 让代码意图更清楚。
+3. 配合 = delete 控制类能做什么、不能做什么。
+```
+
+小结：
+
+```text
+= delete   禁止编译器生成或禁止调用某个函数。
+= default  要求编译器生成默认版本的函数。
+```
+
+---
+
+## 5、C++ 显式类型转换
+
+C 语言风格转换：
+
+```cpp
+int a = (int)3.14;
+```
+
+C++ 更推荐使用下面四种显式类型转换，因为语义更清楚。
+
+---
+
+## 6、static_cast
+
+`static_cast` 用于比较正常、风险较低的类型转换。
+
+常见用途：
+
+```text
+1. 基础类型之间转换。
+2. void* 和其他类型指针之间转换。
+3. 有继承关系的类指针之间转换。
+```
+
+示例：
+
+```cpp
+double d = 3.14;
+int a = static_cast<int>(d);
+```
+
+说明：
+
+```text
+3.14 转成 int 后，小数部分会被丢掉，结果是 3。
+```
+
+---
+
+## 7、reinterpret_cast
+
+`reinterpret_cast` 用于非常底层、风险较高的强制解释。
+
+常见用途：
+
+```text
+1. 不同类型指针之间强转。
+2. 整数和指针之间强转。
+```
+
+示例：
+
+```cpp
+double d = 3.14;
+int* p = reinterpret_cast<int*>(&d);
+```
+
+注意：
+
+```text
+reinterpret_cast 只是换一种类型去解释同一块内存。
+它不保证转换后的结果合理，也不保证访问是安全的。
+```
+
+普通业务代码中应尽量少用。
+
+---
+
+## 8、const_cast
+
+`const_cast` 用来去掉指针或引用上的 `const` 属性。
+
+示例：
+
+```cpp
+int a = 100;
+const int* p = &a;
+
+int* q = const_cast<int*>(p);
+*q = 200;
+```
+
+这种情况中，`a` 本身不是常量，只是通过 `const int*` 不能修改，所以去掉 `const` 后修改通常可以。
+
+但如果原对象本身就是 `const`，再强行修改就是未定义行为：
+
+```cpp
+const int a = 100;
+const int* p = &a;
+
+int* q = const_cast<int*>(p);
+*q = 200;  // 未定义行为
+```
+
+注意：
+
+```text
+const_cast 只能去掉访问路径上的 const。
+如果对象本身真的是 const，不应该修改它。
+```
+
+---
+
+## 9、dynamic_cast
+
+`dynamic_cast` 主要用于多态类型之间的安全向下转换。
+
+一般用于继承和虚函数相关场景：
+
+```cpp
+Base* p = new Derived;
+Derived* q = dynamic_cast<Derived*>(p);
+```
+
+当前阶段先记住：
+
+```text
+dynamic_cast 常用于有继承关系、有虚函数的类之间转换。
+后面学习继承和多态时再重点掌握。
+```
+
+---
+
+## 10、Day6 总结
+
+```text
+1. 拷贝构造函数用于用已有对象初始化新对象。
+2. 拷贝构造函数参数通常写成 const 类名&。
+3. 对象按值传参、按值返回、用已有对象创建新对象时，可能调用拷贝构造。
+4. 类中有指针成员并管理堆内存时，要注意深拷贝。
+5. 浅拷贝只复制地址，深拷贝会重新申请内存并复制内容。
+6. = delete 可以禁止某些函数被调用，例如禁止拷贝。
+7. = default 可以要求编译器生成默认版本的函数。
+8. static_cast 用于常规转换。
+9. reinterpret_cast 用于底层重新解释，风险较高。
+10. const_cast 用于去掉 const，但不能修改真正的 const 对象。
+11. dynamic_cast 用于多态类型转换，后面继承多态再深入。
+```
+
+一句话记忆：
+
+```text
+Day6 的重点是对象复制：有资源就想深拷贝，不想被复制就 delete；类型转换要选语义明确的 C++ 写法。
+```

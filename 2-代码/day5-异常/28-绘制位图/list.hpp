@@ -8,6 +8,8 @@ class List
 {
 public:
     List();
+    List(const List& other);
+    List& operator=(const List& other);
     ~List();
     void push_back(Type x);
     void push_front(Type x);
@@ -18,18 +20,19 @@ public:
     int size() const;
     bool empty() const;
     void print() const;
+    Type getElem(int n) const;
+
 private:
     struct Node
     {
         Node(Type data);
         Type _data;
-        struct Node* _next;
-        struct Node* _prev;
+        struct Node *_next;
+        struct Node *_prev;
     };
-    Node* _head;
-    Node* _tail;
+    Node *_head;
+    Node *_tail;
     int _size;
 };
-
 
 #endif
