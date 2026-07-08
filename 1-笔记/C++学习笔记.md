@@ -2988,3 +2988,1369 @@ dynamic_cast 常用于有继承关系、有虚函数的类之间转换。
 ```text
 Day6 的重点是对象复制：有资源就想深拷贝，不想被复制就 delete；类型转换要选语义明确的 C++ 写法。
 ```
+
+---
+
+# Day 7：友元、运算符重载和函数对象
+
+今天目标：掌握友元的作用，理解运算符重载的本质，并会重载常见运算符：`+`、`==`、`<<`、`>>`、`[]`、`=`、`++`、`--`、`()`.
+
+对应代码：
+
+```text
+2-代码/day7-友元函数/33-友元示例1.cpp
+2-代码/day7-友元函数/34-友元示例2.cpp
+2-代码/day7-友元函数/35-友元示例3.cpp
+2-代码/day7-友元函数/36-典型双目运算符重载示例.cpp
+2-代码/day7-友元函数/37-输入输出运算符重载示例.cpp
+2-代码/day7-友元函数/38-下标运算符示例.cpp
+2-代码/day7-友元函数/39-赋值运算符重载示例.cpp
+2-代码/day7-友元函数/40-赋值运算符重载示例2.cpp
+2-代码/day7-友元函数/41-自增运算符示例.cpp
+2-代码/day7-友元函数/42-函数调用运算符示例.cpp
+2-代码/day7-友元函数/43-函数对象使用示例.cpp
+```
+
+---
+
+## 1、友元 friend
+
+友元用于授权某个函数或类访问本类的私有成员。
+
+常见形式：
+
+```cpp
+class Demo
+{
+    friend void print_demo(Demo d);     // 友元函数
+    friend class Other;                 // 友元类
+};
+```
+
+注意：
+
+```text
+1. 友元声明可以写在类中任意位置。
+2. 友元不是成员函数，只是被允许访问私有成员。
+3. 友元关系是单向的，不会自动反向。
+4. 友元关系不能传递。
+```
+
+---
+
+## 2、运算符重载
+
+运算符重载就是给已有运算符添加适合类对象的新功能。
+
+本质：
+
+```text
+运算符重载本质上还是函数重载。
+```
+
+函数名格式：
+
+```cpp
+operator运算符
+```
+
+例如：
+
+```cpp
+operator+
+operator==
+operator<<
+operator[]
+```
+
+简单理解：
+
+```cpp
+d1 + d2;
+```
+
+可能等价于：
+
+```cpp
+operator+(d1, d2);     // 全局函数
+d1.operator+(d2);      // 成员函数
+```
+
+---
+
+## 3、双目运算符
+
+典型双目运算符：
+
+```text
++ - * /
+== != > >= < <=
+```
+
+可以重载为全局函数，也可以重载为成员函数。
+
+全局函数示例：
+
+```cpp
+class Demo
+{
+public:
+    friend Demo operator+(Demo d1, Demo d2);
+    Demo(int x = 0) : _x(x) {}
+
+private:
+    int _x;
+};
+
+Demo operator+(Demo d1, Demo d2)
+{
+    return Demo(d1._x + d2._x);
+}
+```
+
+成员函数示例：
+
+```cpp
+bool operator==(Demo d2) const
+{
+    return _x == d2._x;
+}
+```
+
+建议：
+
+```text
+不修改对象的运算符函数，尽量写 const。
+参数较大时，优先用 const 引用传参。
+```
+
+---
+
+## 4、输入输出运算符
+
+`<<` 和 `>>` 一般重载为全局函数。
+
+原因：
+
+```cpp
+cout << d;
+cin >> d;
+```
+
+左操作数是 `cout` 或 `cin`，不是当前类对象。
+
+基本形式：
+
+```cpp
+std::ostream& operator<<(std::ostream& out, const Demo& d);
+std::istream& operator>>(std::istream& in, Demo& d);
+```
+
+示例：
+
+```cpp
+class Demo
+{
+public:
+    friend std::ostream& operator<<(std::ostream& out, const Demo& d);
+    friend std::istream& operator>>(std::istream& in, Demo& d);
+    Demo(int x = 0) : _x(x) {}
+
+private:
+    int _x;
+};
+
+std::ostream& operator<<(std::ostream& out, const Demo& d)
+{
+    out << "Demo(" << d._x << ")";
+    return out;
+}
+
+std::istream& operator>>(std::istream& in, Demo& d)
+{
+    in >> d._x;
+    return in;
+}
+```
+
+返回引用是为了支持连续输入输出：
+
+```cpp
+cout << d1 << d2 << endl;
+cin >> d1 >> d2;
+```
+
+---
+
+## 5、下标运算符 []
+
+`[]` 必须重载为成员函数。
+
+常见写法：
+
+```cpp
+int& operator[](int index);
+const int& operator[](int index) const;
+```
+
+示例：
+
+```cpp
+class Demo
+{
+public:
+    int& operator[](int index)
+    {
+        return p[index];
+    }
+
+    const int& operator[](int index) const
+    {
+        return p[index];
+    }
+
+private:
+    int* p;
+};
+```
+
+说明：
+
+```text
+非 const 版本：支持 d[0] = 100。
+const 版本：支持 const 对象读取 d[0]。
+返回引用：才能真正修改对象内部元素。
+```
+
+---
+
+## 6、赋值运算符 =
+
+拷贝构造和拷贝赋值不同：
+
+```cpp
+Demo d2 = d1;   // 拷贝构造，创建新对象
+d2 = d1;        // 拷贝赋值，已有对象之间赋值
+```
+
+赋值运算符只能重载为成员函数：
+
+```cpp
+Demo& operator=(const Demo& rhs);
+```
+
+基本写法：
+
+```cpp
+Demo& operator=(const Demo& rhs)
+{
+    if (this != &rhs)
+    {
+        _x = rhs._x;
+    }
+
+    return *this;
+}
+```
+
+如果类中管理堆内存，需要深拷贝：
+
+```text
+1. 判断自赋值。
+2. 释放旧资源。
+3. 申请新资源。
+4. 复制右侧对象的数据。
+5. return *this。
+```
+
+---
+
+## 7、自增自减运算符
+
+前置和后置写法不同。
+
+前置：
+
+```cpp
+Demo& operator++();       // ++d
+Demo& operator--();       // --d
+```
+
+后置：
+
+```cpp
+Demo operator++(int);     // d++
+Demo operator--(int);     // d--
+```
+
+后置版本中的 `int` 是占位参数，只用于区分前置和后置。
+
+核心区别：
+
+```text
+前置：先改变自己，再返回改变后的自己，通常返回引用。
+后置：先保存旧值，再改变自己，返回旧值，通常返回对象。
+```
+
+示例：
+
+```cpp
+Demo& operator++()
+{
+    ++x;
+    return *this;
+}
+
+Demo operator++(int)
+{
+    Demo tmp = *this;
+    ++x;
+    return tmp;
+}
+```
+
+---
+
+## 8、函数调用运算符 ()
+
+`() `只能重载为成员函数。
+
+```cpp
+class Demo
+{
+public:
+    void operator()()
+    {
+        cout << "hello operator()" << endl;
+    }
+
+    void operator()(int x)
+    {
+        cout << "x = " << x << endl;
+    }
+};
+```
+
+使用：
+
+```cpp
+Demo d;
+d();
+d(100);
+```
+
+等价于：
+
+```cpp
+d.operator()();
+d.operator()(100);
+```
+
+---
+
+## 9、函数对象
+
+重载了 `operator()` 的对象，称为函数对象，也叫仿函数。
+
+函数对象像函数一样调用，但它比普通函数多一个优点：
+
+```text
+函数对象可以保存状态。
+```
+
+示例：
+
+```cpp
+class PrintInt
+{
+public:
+    PrintInt(char c = ' ') : c(c) {}
+
+    void operator()(int x)
+    {
+        cout << x << c;
+    }
+
+private:
+    char c;
+};
+```
+
+使用：
+
+```cpp
+PrintInt p1('^');
+p1(100);          // 输出 100^
+
+PrintInt('~')(5); // 匿名函数对象
+```
+
+函数对象常用于把“行为”传给函数：
+
+```cpp
+void print_array(int a[], int n, PrintInt func)
+{
+    for (int i = 0; i < n; i++)
+        func(a[i]);
+}
+```
+
+---
+
+## 10、Day7 总结
+
+```text
+1. friend 用于授权函数或类访问私有成员。
+2. 运算符重载本质是函数重载，函数名是 operator运算符。
+3. 双目运算符可写成全局函数或成员函数。
+4. << 和 >> 通常写成全局函数，并返回流对象引用。
+5. [] 必须写成成员函数，常提供 const 和非 const 两个版本。
+6. = 只能写成成员函数，管理资源时要防止浅拷贝问题。
+7. 前置++/--返回改变后的自己，后置++/--返回改变前的旧值。
+8. 后置++/--的 int 参数只是占位，用来区分前置和后置。
+9. operator() 让对象可以像函数一样调用。
+10. 函数对象比普通函数更灵活，因为它可以保存状态。
+```
+
+一句话记忆：
+
+```text
+Day7 的重点是让类对象用起来更像内置类型：能加、能比、能输入输出、能下标访问，甚至能像函数一样调用。
+```
+
+---
+
+# Day 8：lambda 表达式、移动语义、自定义字符串和单例模式
+
+今天重点：掌握 lambda 的基本用法，理解移动语义和 `std::move`，复习资源管理类的写法，认识单例模式。
+
+对应代码：
+
+```text
+2-代码/day8-lambda表达式/44-lambda表达式示例.cpp
+2-代码/day8-lambda表达式/45-lambda表达式使用示例.cpp
+2-代码/day8-lambda表达式/46-移动操作示例.cpp
+2-代码/day8-lambda表达式/47-自定义字符串类型.cpp
+2-代码/day8-lambda表达式/48-单例模式示例1.cpp
+2-代码/day8-lambda表达式/49-单例模式示例2.cpp
+2-代码/day8-lambda表达式/50-单例模式示例3.cpp
+```
+
+---
+
+## 1、lambda 表达式
+
+lambda 表达式就是匿名函数，适合临时写一段简单逻辑。
+
+基本格式：
+
+```cpp
+[捕获列表](参数列表) -> 返回值类型
+{
+    函数体;
+};
+```
+
+常见写法：
+
+```cpp
+auto print = []{
+    cout << "hello lambda!" << endl;
+};
+
+print();
+```
+
+捕获方式：
+
+```cpp
+[=]  // 按值捕获，拿到外部变量的副本
+[&]  // 按引用捕获，可以修改外部变量
+```
+
+示例：
+
+```cpp
+int x = 1;
+int y = 2;
+
+[=]() {
+    cout << x << endl;
+    cout << y << endl;
+}();
+
+[&](int z) {
+    x += z;
+    y += z;
+}(100);
+```
+
+注意：
+
+```text
+无捕获 lambda 可以转换成普通函数指针。
+有捕获 lambda 不能转换成普通函数指针。
+```
+
+示例：
+
+```cpp
+int index = find_array(a, 5, [](int x){
+    return x % 2 == 0;
+});
+```
+
+---
+
+## 2、函数对象和 lambda
+
+函数对象是重载了 `operator()` 的对象。
+
+```cpp
+class EvenNumber
+{
+public:
+    bool operator()(int x)
+    {
+        return x % 2 == 0;
+    }
+};
+```
+
+使用：
+
+```cpp
+EvenNumber func;
+func(10);
+```
+
+lambda 本质上也类似一个函数对象。
+
+```cpp
+[](int x){ return x % 2 == 0; }
+```
+
+简单理解：
+
+```text
+函数对象：适合复用、保存状态。
+lambda：适合临时传入一小段逻辑。
+```
+
+---
+
+## 3、移动语义
+
+移动语义用于减少不必要的深拷贝。
+
+如果类中管理堆内存：
+
+```cpp
+class Demo
+{
+private:
+    char* p;
+};
+```
+
+普通拷贝需要重新申请内存并复制内容。移动语义则是直接转移资源所有权。
+
+核心思想：
+
+```text
+能移动就不拷贝。
+把右边对象的资源拿过来，再把右边对象置空。
+```
+
+---
+
+## 4、移动构造和移动赋值
+
+移动构造函数：
+
+```cpp
+Demo(Demo&& rhs)
+{
+    cout << "移动构造" << endl;
+    p = rhs.p;
+    rhs.p = nullptr;
+}
+```
+
+移动赋值运算符：
+
+```cpp
+Demo& operator=(Demo&& rhs)
+{
+    cout << "移动赋值" << endl;
+    if (this == &rhs)
+        return *this;
+
+    delete[] p;
+    p = rhs.p;
+    rhs.p = nullptr;
+
+    return *this;
+}
+```
+
+关键点：
+
+```text
+1. 接管右侧对象的资源。
+2. 把右侧对象的指针置空。
+3. 防止两个对象释放同一块内存。
+```
+
+---
+
+## 5、std::move
+
+`std::move` 本身不移动数据，它只是把对象转换成右值引用。
+
+```cpp
+Demo tmp = std::move(s1);
+```
+
+含义：
+
+```text
+告诉编译器：s1 可以被当作临时对象使用。
+如果类中有移动构造，就优先调用移动构造。
+```
+
+交换函数示例：
+
+```cpp
+void swap(Demo& s1, Demo& s2)
+{
+    Demo tmp = std::move(s1);
+    s1 = std::move(s2);
+    s2 = std::move(tmp);
+}
+```
+
+注意：
+
+```text
+被 std::move 后的对象仍然可以析构，也可以重新赋值，
+但不要再依赖它原来的值。
+```
+
+---
+
+## 6、自定义字符串类型
+
+`47-自定义字符串类型.cpp` 中实现了一个简单的 `china::string`。
+
+核心成员：
+
+```cpp
+char* _data;
+```
+
+因为它管理堆内存，所以要重点写好：
+
+```text
+构造函数
+析构函数
+拷贝构造函数
+拷贝赋值运算符
+```
+
+构造函数：
+
+```cpp
+string(const char *s = NULL)
+{
+    if (s == NULL)
+    {
+        _data = new char[1];
+        _data[0] = '\0';
+    }
+    else
+    {
+        _data = new char[strlen(s) + 1];
+        strcpy(_data, s);
+    }
+}
+```
+
+析构函数：
+
+```cpp
+~string()
+{
+    delete[] _data;
+}
+```
+
+拷贝构造：
+
+```cpp
+string(const string &rhs)
+{
+    _data = new char[strlen(rhs._data) + 1];
+    strcpy(_data, rhs._data);
+}
+```
+
+拷贝赋值：
+
+```cpp
+string &operator=(const string &rhs)
+{
+    if (this != &rhs)
+    {
+        delete[] _data;
+        _data = new char[strlen(rhs._data) + 1];
+        strcpy(_data, rhs._data);
+    }
+    return *this;
+}
+```
+
+重点：
+
+```text
+默认拷贝只复制指针地址，会造成浅拷贝问题。
+自定义 string 必须深拷贝，避免重复释放同一块内存。
+```
+
+常用接口：
+
+```cpp
+int size() const;
+bool empty() const;
+const char* c_str() const;
+char& operator[](int index);
+string operator+(const string& rhs) const;
+bool operator<(const string& rhs) const;
+```
+
+---
+
+## 7、单例模式
+
+单例模式保证一个类在程序中只有一个对象。
+
+核心写法：
+
+```text
+1. 构造函数私有化。
+2. 提供 static instance() 函数获取唯一对象。
+3. 禁止拷贝构造和赋值。
+```
+
+推荐写法：
+
+```cpp
+class Singleton
+{
+public:
+    static Singleton& instance()
+    {
+        static Singleton obj;
+        return obj;
+    }
+
+private:
+    Singleton() {}
+    Singleton(const Singleton&) = delete;
+    Singleton& operator=(const Singleton&) = delete;
+};
+```
+
+使用：
+
+```cpp
+Singleton& s1 = Singleton::instance();
+Singleton& s2 = Singleton::instance();
+```
+
+说明：
+
+```text
+s1 和 s2 引用的是同一个对象。
+C++11 以后，函数内 static 局部对象初始化是线程安全的。
+```
+
+饿汉式：
+
+```text
+程序开始时就创建对象。
+```
+
+懒汉式：
+
+```text
+第一次使用时才创建对象。
+```
+
+当前阶段推荐记住：
+
+```text
+函数内 static 局部对象是实现单例的常用写法。
+```
+
+---
+
+## 8、Day8 总结
+
+```text
+1. lambda 是匿名函数，适合临时写一段逻辑。
+2. [=] 是值捕获，[&] 是引用捕获。
+3. 无捕获 lambda 可以转换成函数指针。
+4. 函数对象是重载了 operator() 的对象。
+5. 移动语义用于转移资源，减少深拷贝。
+6. std::move 只是把对象转换成右值引用。
+7. 移动构造和移动赋值都要把原对象指针置空。
+8. 管理堆内存的类要注意深拷贝和析构。
+9. 自定义 string 的重点是资源管理。
+10. 单例模式保证一个类只有一个对象。
+11. 单例要私有化构造函数，并禁止拷贝和赋值。
+12. 函数内 static 局部对象是推荐的单例写法。
+```
+
+一句话记忆：
+
+```text
+Day8 重点：lambda 写临时逻辑，move 转移资源，string 练资源管理，单例控制对象数量。
+```
+
+---
+
+# Day 9：迭代器和适配器模式
+
+本节代码位置：
+
+```text
+2-代码/day9-迭代器/51-字符串迭代器示例.cpp
+2-代码/day9-迭代器/52-test-list-迭代器版.cpp
+2-代码/day9-迭代器/53-适配器示例.cpp
+2-代码/day9-迭代器/list.hpp
+2-代码/day9-迭代器/list.cpp
+2-代码/day9-迭代器/stack.hpp
+2-代码/day9-迭代器/stack.cpp
+```
+
+## 1、迭代器模式
+
+迭代器模式的作用：
+
+```text
+提供一种方法，顺序访问一个聚合对象中的各个元素，
+同时不暴露这个对象内部的存储结构。
+```
+
+简单理解：
+
+```text
+容器负责保存数据。
+迭代器负责遍历数据。
+外部使用者不需要知道容器内部到底是数组、链表还是其他结构。
+```
+
+C++ 标准库中常见的迭代器用法：
+
+```cpp
+for (auto it = 容器.begin(); it != 容器.end(); ++it)
+{
+    cout << *it << endl;
+}
+```
+
+迭代器通常需要支持：
+
+```text
+*it       访问当前元素
+++it      移动到下一个元素
+it != end 判断是否遍历结束
+```
+
+容器通常需要提供：
+
+```text
+begin()   返回第一个元素位置的迭代器
+end()     返回尾后位置的迭代器
+```
+
+注意：
+
+```text
+end() 不是最后一个元素，而是最后一个元素后面的那个位置。
+end() 只能用来比较，不能解引用。
+```
+
+---
+
+## 2、字符串迭代器示例
+
+`51-字符串迭代器示例.cpp` 中给自定义字符串 `china::string` 添加了迭代器。
+
+字符串内部核心数据：
+
+```cpp
+char *_data;
+```
+
+因为字符串本质上是一段连续字符，所以迭代器内部只需要保存一个字符指针：
+
+```cpp
+class iterator
+{
+public:
+    iterator(char *p) : p(p) {}
+
+    char &operator*()
+    {
+        return *p;
+    }
+
+    iterator &operator++()
+    {
+        ++p;
+        return *this;
+    }
+
+    bool operator!=(const iterator &rhs) const
+    {
+        return this->p != rhs.p;
+    }
+
+private:
+    char *p;
+};
+```
+
+`begin()` 返回第一个字符的位置：
+
+```cpp
+iterator begin()
+{
+    return iterator(_data);
+}
+```
+
+`end()` 返回字符串结束符 `'\0'` 的位置：
+
+```cpp
+iterator end()
+{
+    return iterator(_data + strlen(_data));
+}
+```
+
+使用方式：
+
+```cpp
+china::string s1 = "hello world";
+
+for (china::string::iterator it = s1.begin(); it != s1.end(); ++it)
+{
+    cout << *it << ' ';
+}
+```
+
+输出效果：
+
+```text
+h e l l o   w o r l d
+```
+
+重点：
+
+```text
+字符串迭代器的本质就是 char*。
+operator* 返回当前字符。
+operator++ 让指针后移。
+operator!= 比较两个迭代器是否指向同一位置。
+```
+
+---
+
+## 3、自定义 List 迭代器
+
+`list.hpp` 中的 `List` 是一个双向链表。
+
+链表结点：
+
+```cpp
+struct Node
+{
+    Node(Type data);
+    Type _data;
+    struct Node *_next;
+    struct Node *_prev;
+};
+```
+
+这里：
+
+```cpp
+using Type = std::string;
+```
+
+所以当前链表保存的是字符串。
+
+链表本身保存：
+
+```cpp
+Node *_head;
+Node *_tail;
+int _size;
+```
+
+自定义链表的迭代器定义在 `List` 类内部：
+
+```cpp
+class iterator
+{
+public:
+    iterator();
+    Type &operator*();
+    iterator &operator++();
+    bool operator!=(const iterator &rhs) const;
+
+private:
+    friend class List;
+    Node *_p;
+    iterator(Node *p);
+};
+```
+
+为什么要把迭代器定义在 `List` 里面？
+
+```text
+1. 迭代器是专门为 List 服务的。
+2. 它需要知道 List 的结点类型 Node。
+3. 外部使用者只需要会用 iterator，不需要知道 Node 的细节。
+```
+
+为什么需要 `friend class List`？
+
+```text
+iterator(Node *p) 是私有构造函数。
+外部不能随便用 Node* 创建迭代器。
+只有 List 自己能通过 begin() 和 end() 创建合法迭代器。
+```
+
+迭代器默认构造：
+
+```cpp
+List::iterator::iterator() : _p(nullptr) {}
+```
+
+用结点指针构造：
+
+```cpp
+List::iterator::iterator(Node *p) : _p(p) {}
+```
+
+解引用：
+
+```cpp
+Type &List::iterator::operator*()
+{
+    return _p->_data;
+}
+```
+
+前置自增：
+
+```cpp
+List::iterator &List::iterator::operator++()
+{
+    _p = _p->_next;
+    return *this;
+}
+```
+
+不等比较：
+
+```cpp
+bool List::iterator::operator!=(const iterator &rhs) const
+{
+    return _p != rhs._p;
+}
+```
+
+`begin()` 返回头结点：
+
+```cpp
+List::iterator List::begin()
+{
+    return iterator(_head);
+}
+```
+
+`end()` 返回空指针：
+
+```cpp
+List::iterator List::end()
+{
+    return iterator(nullptr);
+}
+```
+
+因为链表最后一个结点的 `_next` 是 `nullptr`，所以遍历到 `nullptr` 就表示结束。
+
+使用方式：
+
+```cpp
+List list;
+
+list.push_back("hello");
+list.push_back("world");
+list.push_back("iterator");
+list.push_front("C++");
+
+for (auto it = list.begin(); it != list.end(); ++it)
+{
+    cout << *it << endl;
+}
+```
+
+输出顺序：
+
+```text
+C++
+hello
+world
+iterator
+```
+
+重点：
+
+```text
+List 迭代器的本质就是 Node*。
+operator* 返回当前结点的数据。
+operator++ 让指针移动到下一个结点。
+begin() 是 _head。
+end() 是 nullptr。
+空链表时 begin() == end()。
+```
+
+注意：
+
+```text
+不能对 end() 解引用，因为 end() 内部是 nullptr。
+链表删除结点后，指向被删除结点的迭代器会失效。
+```
+
+---
+
+## 4、范围 for 的条件
+
+范围 for 的写法：
+
+```cpp
+for (auto &x : 容器)
+{
+    cout << x << endl;
+}
+```
+
+想让自定义容器支持范围 for，至少要提供：
+
+```text
+begin()
+end()
+迭代器的 operator*
+迭代器的 operator++
+迭代器的 operator!=
+```
+
+所以 `List` 提供了 `begin()`、`end()` 和 `iterator` 后，理论上就可以写：
+
+```cpp
+for (const auto &c : list)
+{
+    cout << c << endl;
+}
+```
+
+当前代码中这段是注释状态：
+
+```cpp
+// for (const auto &c : list)
+// {
+//     cout << c << endl;
+// }
+```
+
+如果要支持 `const List` 的范围 for，还需要补充 `const` 版本的 `begin()` 和 `end()`。
+
+---
+
+## 5、适配器模式
+
+适配器模式的作用：
+
+```text
+把一个类的接口转换成用户希望的另一个接口。
+```
+
+简单理解：
+
+```text
+原来的类功能够用，但是接口名字或使用方式不符合当前需求。
+这时可以再包一层，把旧接口包装成新接口。
+```
+
+适配器也叫包装器。
+
+常见实现方式：
+
+```text
+对象适配器：通过组合实现，类里面保存一个已有对象。
+类适配器：通过继承实现。
+```
+
+本节代码使用的是对象适配器。
+
+---
+
+## 6、用 List 适配 Stack
+
+栈的特点：
+
+```text
+后进先出，LIFO。
+最后放进去的数据，最先取出来。
+```
+
+`stack.hpp` 中定义了 `Stack`：
+
+```cpp
+class Stack
+{
+public:
+    void push(Type x);
+    void pop();
+    Type top() const;
+    bool empty() const;
+    int size() const;
+
+private:
+    List _list;
+};
+```
+
+这里 `Stack` 内部保存了一个 `List`：
+
+```cpp
+List _list;
+```
+
+也就是说：
+
+```text
+Stack 自己不重新实现链表。
+Stack 直接复用 List 的功能。
+Stack 只是把 List 的接口包装成栈的接口。
+```
+
+接口对应关系：
+
+```text
+Stack::push(x)   -> List::push_back(x)
+Stack::pop()     -> List::pop_back()
+Stack::top()     -> List::back()
+Stack::empty()   -> List::empty()
+Stack::size()    -> List::size()
+```
+
+实现：
+
+```cpp
+void Stack::push(Type x)
+{
+    _list.push_back(x);
+}
+
+void Stack::pop()
+{
+    _list.pop_back();
+}
+
+Type Stack::top() const
+{
+    return _list.back();
+}
+
+bool Stack::empty() const
+{
+    return _list.empty();
+}
+
+int Stack::size() const
+{
+    return _list.size();
+}
+```
+
+为了兼容课堂中 `LinkStack` 的叫法，还写了类型别名：
+
+```cpp
+using LinkStack = Stack;
+```
+
+使用方式：
+
+```cpp
+LinkStack s1;
+
+s1.push("hello");
+s1.push("cpp");
+s1.push("world");
+s1.push("!!!");
+
+while (!s1.empty())
+{
+    cout << s1.top() << endl;
+    s1.pop();
+}
+```
+
+输出顺序：
+
+```text
+!!!
+world
+cpp
+hello
+```
+
+重点：
+
+```text
+Stack 是适配器。
+List 是被适配的已有类。
+Stack 通过组合 List，复用链表尾插、尾删、取尾元素的能力。
+```
+
+---
+
+## 7、Day9 总结
+
+```text
+1. 迭代器用于遍历容器，同时隐藏容器内部结构。
+2. begin() 返回第一个元素的位置。
+3. end() 返回尾后位置，不能解引用。
+4. 迭代器常用操作是 *、++、!=。
+5. 字符串迭代器的本质是 char*。
+6. List 迭代器的本质是 Node*。
+7. 链表的 begin() 是 _head，end() 是 nullptr。
+8. 空链表时 begin() == end()。
+9. 自定义容器想支持范围 for，需要 begin()、end() 和基本迭代器操作。
+10. 适配器模式用于把已有类的接口包装成新的接口。
+11. Stack 可以通过组合 List 实现。
+12. 栈的特点是后进先出。
+```
+
+一句话记忆：
+
+```text
+Day9 重点：迭代器负责遍历容器，适配器负责包装接口；List 能遍历，Stack 复用 List。
+```

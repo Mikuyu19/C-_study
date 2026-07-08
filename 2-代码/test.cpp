@@ -1,28 +1,19 @@
 #include <iostream>
+#include <vector>
+#include <algorithm>
 using namespace std;
-class Sample
-{
-public:
-    Sample(int x)
-    {
-        
-    }
-    ~Sample()
-    {
-        if (p)
-            delete p;
-    }
-    int show()
-    {
-        return *p;
-    }
 
-private:
-    int *p;
-};
 int main()
 {
-    Sample S(5);
-    cout << S.show() << endl;
+    vector<int> v = {3, 1, 5, 2, 4};
+
+    sort(v.begin(), v.end());
+
+    for (int x : v)
+    {
+        cout << x << " ";
+    }
+    cout << endl;
+
     return 0;
 }
