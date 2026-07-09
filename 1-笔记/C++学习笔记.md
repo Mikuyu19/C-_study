@@ -4354,3 +4354,674 @@ Stack 通过组合 List，复用链表尾插、尾删、取尾元素的能力。
 ```text
 Day9 重点：迭代器负责遍历容器，适配器负责包装接口；List 能遍历，Stack 复用 List。
 ```
+
+---
+
+# Day 10：继承
+
+本节代码位置：
+
+```text
+2-代码/day10-继承/54-继承规则验证.cpp
+2-代码/day10-继承/55-私有继承示例.cpp
+2-代码/day10-继承/56-继承中的构造函数示例.cpp
+2-代码/day10-继承/57-继承中的同名成员示例.cpp
+2-代码/day10-继承/58-公有派生类与基类关系示例.cpp
+2-代码/day10-继承/59-类适配器示例.cpp
+2-代码/day10-继承/60-多重继承示例1.cpp
+2-代码/day10-继承/61-菱形继承示例.cpp
+```
+
+## 1、继承的概念
+
+继承就是在已有类的基础上创建新类。
+
+```text
+已有类：基类，也叫父类。
+新类：派生类，也叫子类。
+```
+
+继承的作用：
+
+```text
+1. 复用已有代码。
+2. 减少重复成员。
+3. 描述类型之间的关系。
+```
+
+示例：
+
+```text
+学生 -> 大学生、中学生、小学生
+计算机 -> 台式机、笔记本、平板
+车 -> 小汽车、公交车、洒水车
+```
+
+语法：
+
+```cpp
+class 派生类名 : 继承方式 基类名
+{
+    派生类新增成员;
+};
+```
+
+例如：
+
+```cpp
+class Derived : public Base
+{
+};
+```
+
+根据基类数量，继承可以分为：
+
+```text
+单继承：只有一个基类。
+多重继承：有两个或两个以上基类。
+```
+
+注意：
+
+```text
+class 默认是 private 继承。
+struct 默认是 public 继承。
+实际写代码时建议把继承方式明确写出来。
+```
+
+---
+
+## 2、继承方式和访问权限
+
+继承方式决定基类成员到派生类之后的访问权限。
+
+三种继承方式：
+
+```text
+public      公有继承
+private     私有继承
+protected   保护继承
+```
+
+基类成员自身也有三种访问权限：
+
+```text
+public      类内可以访问，类外可以访问。
+protected   类内可以访问，派生类内可以访问，类外不能访问。
+private     只有本类内部可以访问，派生类和类外都不能直接访问。
+```
+
+公有继承：
+
+```text
+基类 public 成员    -> 派生类 public 成员
+基类 protected 成员 -> 派生类 protected 成员
+基类 private 成员   -> 派生类不可直接访问
+```
+
+私有继承：
+
+```text
+基类 public 成员    -> 派生类 private 成员
+基类 protected 成员 -> 派生类 private 成员
+基类 private 成员   -> 派生类不可直接访问
+```
+
+保护继承：
+
+```text
+基类 public 成员    -> 派生类 protected 成员
+基类 protected 成员 -> 派生类 protected 成员
+基类 private 成员   -> 派生类不可直接访问
+```
+
+重点：
+
+```text
+不管哪种继承方式，基类 private 成员都不能在派生类中直接访问。
+继承方式主要影响 public 和 protected 成员在派生类中的权限。
+```
+
+---
+
+## 3、公有继承规则
+
+`54-继承规则验证.cpp` 中：
+
+```cpp
+class Base
+{
+public:
+    int x;
+private:
+    int y;
+protected:
+    int z;
+};
+
+class Derived : public Base
+{
+public:
+    void setValue()
+    {
+        x = 1;
+        // y = 2; // 错误，派生类不能直接访问基类 private 成员
+        z = 3;
+    }
+};
+```
+
+类外使用：
+
+```cpp
+Derived d1;
+d1.x = 1;   // 可以，public 继承后 x 仍然是 public
+// d1.y = 2; // 错误，private 成员类外不能访问
+// d1.z = 3; // 错误，protected 成员类外不能访问
+```
+
+结论：
+
+```text
+public 继承保持基类 public/protected 的权限级别。
+public 继承常用于表达 is-a 关系。
+```
+
+---
+
+## 4、私有继承规则
+
+`55-私有继承示例.cpp` 中：
+
+```cpp
+class Derived : private Base
+{
+public:
+    void setValue()
+    {
+        x = 1;
+        // y = 2; // 错误
+        z = 3;
+    }
+};
+```
+
+在 `Derived` 内部：
+
+```text
+x 可以访问，因为 Base::x 原来是 public。
+z 可以访问，因为 Base::z 原来是 protected。
+y 不可以直接访问，因为 Base::y 是 private。
+```
+
+但是在类外：
+
+```cpp
+Derived d1;
+// d1.x = 1; // 错误，private 继承后 x 变成 Derived 的 private 成员
+// d1.z = 3; // 错误，protected/private 类外都不能访问
+```
+
+再派生一层：
+
+```cpp
+class Derived2 : public Derived
+{
+public:
+    void test()
+    {
+        // x = 10; // 错误，x 在 Derived 中已经变成 private
+        // z = 30; // 错误，z 在 Derived 中已经变成 private
+    }
+};
+```
+
+结论：
+
+```text
+private 继承会把基类 public/protected 成员变成派生类 private 成员。
+下一层派生类不能再直接访问这些成员。
+```
+
+---
+
+## 5、继承中的构造和析构
+
+构造函数和析构函数不能被继承。
+
+```text
+基类部分由基类构造函数初始化。
+派生类新增部分由派生类构造函数初始化。
+```
+
+如果基类有默认构造函数：
+
+```text
+创建派生类对象时，会自动调用基类默认构造函数。
+```
+
+如果基类没有默认构造函数，或者想调用带参数构造函数：
+
+```text
+必须在派生类构造函数初始化列表中显式调用基类构造函数。
+```
+
+示例：
+
+```cpp
+class Derived : public Base
+{
+public:
+    Derived(int x, int y, int z) : Base(x, y, z), a(0)
+    {
+        cout << "Derived(int,int,int)" << endl;
+    }
+
+private:
+    int a;
+    Base b;
+};
+```
+
+这里：
+
+```text
+Base(x, y, z) 初始化继承来的基类子对象。
+a(0) 初始化派生类自己的成员。
+Base b 是成员对象，会自动调用 Base 的构造函数。
+```
+
+创建派生类对象时，构造顺序：
+
+```text
+1. 基类构造函数。
+2. 成员对象构造函数。
+3. 派生类构造函数。
+```
+
+销毁派生类对象时，析构顺序相反：
+
+```text
+1. 派生类析构函数。
+2. 成员对象析构函数。
+3. 基类析构函数。
+```
+
+重点：
+
+```text
+先构造里面，再构造外面。
+先析构外面，再析构里面。
+```
+
+---
+
+## 6、继承中的同名成员
+
+派生类可以定义和基类同名的成员。
+
+如果出现同名成员，派生类自己的成员会隐藏基类的同名成员。
+
+示例：
+
+```cpp
+class Base
+{
+public:
+    void setX(int x);
+    int getX() const;
+
+protected:
+    int x;
+};
+
+class Derived : public Base
+{
+public:
+    void setX(int x);
+    int getX() const;
+
+protected:
+    int x;
+};
+```
+
+使用：
+
+```cpp
+Derived d1;
+d1.setX(100);              // 调用 Derived::setX()
+cout << d1.getX() << endl; // 调用 Derived::getX()
+```
+
+如果想访问基类中被隐藏的成员，需要加作用域：
+
+```cpp
+cout << d1.Base::getX() << endl;
+```
+
+注意：
+
+```text
+函数隐藏只看函数名。
+只要派生类有同名函数，基类中同名函数都会被隐藏。
+这和函数重载不同。
+```
+
+---
+
+## 7、公有派生类与基类的关系
+
+公有继承表示 is-a 关系。
+
+```text
+Derived 是一种 Base。
+需要 Base 的地方，可以使用 Derived。
+```
+
+常见用法：
+
+```cpp
+Derived d1(100, 200);
+
+Base b1 = d1; // 用派生类对象初始化基类对象
+b1 = d1;      // 用派生类对象给基类对象赋值
+
+Base *p1 = &d1; // 基类指针指向派生类对象
+Base &r = d1;   // 基类引用绑定派生类对象
+```
+
+对象切片：
+
+```cpp
+Base b1 = d1;
+```
+
+这句只会保留 `Base` 部分，`Derived` 新增的 `y` 会被切掉。
+
+基类指针和引用：
+
+```cpp
+Base *p1 = &d1;
+p1->print();
+
+Base &r = d1;
+r.print();
+```
+
+当前代码里 `print()` 不是虚函数，所以：
+
+```text
+通过 Base* 或 Base& 调用 print()，调用的是 Base::print()。
+不会自动调用 Derived::print()。
+```
+
+如果要让基类指针根据实际对象类型调用派生类函数，需要后面学习的虚函数和多态。
+
+---
+
+## 8、类适配器
+
+Day9 中用组合实现了对象适配器：
+
+```cpp
+class Stack
+{
+private:
+    List _list;
+};
+```
+
+Day10 中用私有继承实现类适配器：
+
+```cpp
+class LinkStack : private List
+{
+public:
+    void push(std::string s)
+    {
+        push_back(s);
+    }
+
+    void pop()
+    {
+        pop_back();
+    }
+
+    std::string top() const
+    {
+        return back();
+    }
+
+    bool empty() const
+    {
+        return List::empty();
+    }
+};
+```
+
+为什么这里是私有继承？
+
+```text
+LinkStack 不是一种 List。
+LinkStack 只是用 List 的能力来实现栈。
+栈只应该暴露 push、pop、top、empty 等接口。
+不应该把 List 的 push_front、pop_front、getElem 等接口暴露出去。
+```
+
+如果写成公有继承：
+
+```cpp
+class LinkStack : public List
+{
+};
+```
+
+外部就可以这样破坏栈的规则：
+
+```cpp
+LinkStack s;
+s.push_front("hello");
+s.pop_front();
+```
+
+这不符合栈“后进先出”的特点。
+
+所以这里用私有继承：
+
+```text
+private 继承表示“用基类实现自己”。
+public 继承表示“自己是一种基类”。
+```
+
+一句话：
+
+```text
+LinkStack 是栈，不是链表；它只是借用 List 实现栈，所以用 private 继承。
+```
+
+---
+
+## 9、多重继承
+
+多重继承就是一个派生类同时继承多个基类。
+
+语法：
+
+```cpp
+class Derived : public Base1, public Base2
+{
+};
+```
+
+示例：
+
+```cpp
+class Base1
+{
+public:
+    void print() const;
+};
+
+class Base2
+{
+public:
+    void print() const;
+};
+
+class Derived : public Base1, public Base2
+{
+};
+```
+
+如果两个基类中有同名成员：
+
+```cpp
+Derived d1;
+// d1.print(); // 错误，二义性
+```
+
+编译器不知道你想调用 `Base1::print()` 还是 `Base2::print()`。
+
+解决方式：显式指定作用域。
+
+```cpp
+d1.Base1::print();
+d1.Base2::print();
+```
+
+重点：
+
+```text
+多重继承容易出现同名成员二义性。
+遇到二义性时，用 类名::成员名 指定访问路径。
+```
+
+---
+
+## 10、菱形继承和虚继承
+
+菱形继承结构：
+
+```text
+    A
+   / \
+  B   C
+   \ /
+    D
+```
+
+普通写法：
+
+```cpp
+class A {};
+class B : public A {};
+class C : public A {};
+class D : public B, public C {};
+```
+
+问题：
+
+```text
+D 通过 B 继承了一份 A。
+D 通过 C 又继承了一份 A。
+所以 D 对象中会有两份 A 子对象。
+```
+
+如果 `A` 中有成员 `x`：
+
+```cpp
+D d;
+// d.x = 10; // 错误，不知道是 B 路线的 A::x，还是 C 路线的 A::x
+```
+
+解决方式：虚继承。
+
+```cpp
+class A
+{
+public:
+    int x;
+};
+
+class B : virtual public A
+{
+};
+
+class C : virtual public A
+{
+};
+
+class D : public B, public C
+{
+};
+```
+
+也可以写成：
+
+```cpp
+class B : public virtual A {};
+class C : public virtual A {};
+```
+
+虚继承的作用：
+
+```text
+保证最顶层的 A 在最终派生类 D 中只保留一份。
+```
+
+虚基类初始化：
+
+```cpp
+class D : public B, public C
+{
+public:
+    D(int x) : A(x)
+    {
+        cout << "D(int)" << endl;
+    }
+};
+```
+
+重点：
+
+```text
+虚基类 A 由最底层的最终派生类 D 负责初始化。
+B 和 C 不再各自初始化一份 A。
+```
+
+代价：
+
+```text
+虚继承会让对象内部多出一些隐藏指针，用来找到共享的虚基类。
+因此对象大小可能变大，结构也更复杂。
+```
+
+---
+
+## 11、Day10 总结
+
+```text
+1. 继承是在已有类基础上创建新类。
+2. 基类也叫父类，派生类也叫子类。
+3. public 继承表示 is-a 关系。
+4. private 继承表示用基类实现自己。
+5. 基类 private 成员不会因为继承而变成派生类可直接访问。
+6. public 继承保留 public/protected 权限。
+7. private 继承会把基类 public/protected 成员变成派生类 private 成员。
+8. 构造顺序是基类、成员对象、派生类。
+9. 析构顺序是派生类、成员对象、基类。
+10. 派生类同名成员会隐藏基类同名成员。
+11. 访问被隐藏的基类成员要用 Base::成员名。
+12. 基类对象接收派生类对象会发生对象切片。
+13. 当前没有虚函数时，Base* 调用的是 Base 的成员函数。
+14. 多重继承可能产生同名成员二义性。
+15. 菱形继承会让最顶层基类出现多份拷贝。
+16. 虚继承可以让菱形继承中的顶层基类只保留一份。
+```
+
+一句话记忆：
+
+```text
+Day10 重点：public 继承表示“是一个”，private 继承表示“用来实现”；构造从基类到派生类，析构反过来；菱形继承用 virtual 解决重复基类。
+```
