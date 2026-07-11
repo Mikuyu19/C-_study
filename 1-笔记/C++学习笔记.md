@@ -5025,3 +5025,942 @@ B 和 C 不再各自初始化一份 A。
 ```text
 Day10 重点：public 继承表示“是一个”，private 继承表示“用来实现”；构造从基类到派生类，析构反过来；菱形继承用 virtual 解决重复基类。
 ```
+
+---
+
+# Day 11：多态、虚函数和动态类型转换
+
+本节代码位置：
+
+```text
+2-代码/day11-多态/62-多态示例.cpp
+2-代码/day11-多态/63-多态示例2.cpp
+2-代码/day11-多态/64-final示例.cpp
+2-代码/day11-多态/65-虚函数的默认值示例.cpp
+2-代码/day11-多态/66-虚析构函数示例.cpp
+2-代码/day11-多态/67-虚函数调用过程验证.cpp
+2-代码/day11-多态/68-动态类型转换示例.cpp
+2-代码/day11-多态/多态练习.cpp
+```
+
+## 1、多态的概念
+
+多态指的是：
+
+```text
+不同对象收到相同消息，产生不同的行为。
+```
+
+简单理解：
+
+```text
+同一个函数调用，根据对象真实类型不同，执行不同版本的函数。
+```
+
+例如：
+
+```text
+Shape* p 指向 Rect，对 p->area() 求矩形面积。
+Shape* p 指向 Circle，对 p->area() 求圆形面积。
+```
+
+C++ 中多态主要分两类：
+
+```text
+编译时多态：编译阶段就能确定调用哪个函数。
+运行时多态：运行阶段根据对象真实类型决定调用哪个函数。
+```
+
+编译时多态：
+
+```text
+函数重载
+运算符重载
+```
+
+运行时多态：
+
+```text
+通过虚函数实现。
+```
+
+---
+
+## 2、虚函数
+
+用 `virtual` 修饰的成员函数叫虚函数。
+
+基本写法：
+
+```cpp
+class Base
+{
+public:
+    virtual void print() const
+    {
+        cout << "hello" << endl;
+    }
+};
+```
+
+派生类中重新定义基类虚函数，叫函数重写，也叫函数覆盖。
+
+```cpp
+class Derived : public Base
+{
+public:
+    void print() const
+    {
+        cout << "world" << endl;
+    }
+};
+```
+
+重写要求：
+
+```text
+函数名相同。
+参数列表相同。
+返回类型相同或满足协变返回。
+const 属性也要一致。
+```
+
+重点：
+
+```text
+基类函数是 virtual，派生类重写时即使不写 virtual，也自动是虚函数。
+但实际写代码时建议配合 override，让编译器帮忙检查。
+```
+
+---
+
+## 3、动态绑定
+
+`62-多态示例.cpp` 中：
+
+```cpp
+void foo(Base *p)
+{
+    p->print();
+}
+```
+
+调用：
+
+```cpp
+foo(new Base);    // 输出 hello
+foo(new Derived); // 输出 world
+```
+
+原因：
+
+```text
+print() 是虚函数。
+p 是基类指针。
+当 p 指向 Base 对象时，调用 Base::print()。
+当 p 指向 Derived 对象时，调用 Derived::print()。
+```
+
+运行时多态的条件：
+
+```text
+1. 必须有继承关系。
+2. 基类中有虚函数。
+3. 派生类重写基类虚函数。
+4. 通过基类指针或基类引用调用虚函数。
+```
+
+注意：
+
+```text
+如果不是通过基类指针或引用调用，通常不会体现运行时多态。
+如果基类函数没有 virtual，通过 Base* 调用时会调用 Base 的函数。
+```
+
+---
+
+## 4、纯虚函数和抽象类
+
+如果基类只想规定接口，不想提供具体实现，可以写纯虚函数。
+
+格式：
+
+```cpp
+class Shape
+{
+public:
+    virtual double area() const = 0;
+};
+```
+
+纯虚函数：
+
+```text
+函数声明后面写 = 0。
+表示这个函数没有普通实现，要求派生类自己实现。
+```
+
+抽象类：
+
+```text
+包含纯虚函数的类叫抽象类。
+抽象类不能直接创建对象。
+```
+
+错误示例：
+
+```cpp
+Shape s; // 错误，Shape 是抽象类
+```
+
+派生类如果没有实现所有纯虚函数：
+
+```text
+派生类仍然是抽象类，也不能创建对象。
+```
+
+---
+
+## 5、形状多态练习
+
+练习要求：
+
+```text
+编写形状基类 Shape。
+派生 Rect 和 Circle。
+用多态方式计算各种形状对象的面积和周长。
+```
+
+基类：
+
+```cpp
+class Shape
+{
+public:
+    virtual double area() const = 0;
+    virtual double perimeter() const = 0;
+    virtual ~Shape() {}
+};
+```
+
+这里：
+
+```text
+area() 是纯虚函数，求面积。
+perimeter() 是纯虚函数，求周长。
+~Shape() 是虚析构函数，方便通过基类指针正确释放派生类对象。
+```
+
+矩形：
+
+```cpp
+class Rect : public Shape
+{
+public:
+    Rect(double w, double h) : m_w(w), m_h(h) {}
+
+    double area() const override
+    {
+        return m_w * m_h;
+    }
+
+    double perimeter() const override
+    {
+        return 2 * (m_w + m_h);
+    }
+
+private:
+    double m_w;
+    double m_h;
+};
+```
+
+圆形：
+
+```cpp
+class Circle : public Shape
+{
+public:
+    Circle(double r) : m_r(r) {}
+
+    double area() const override
+    {
+        return 3.14 * m_r * m_r;
+    }
+
+    double perimeter() const override
+    {
+        return 2 * 3.14 * m_r;
+    }
+
+private:
+    double m_r;
+};
+```
+
+统一接口：
+
+```cpp
+void foo(Shape *p)
+{
+    cout << "面积: " << p->area() << endl;
+    cout << "周长: " << p->perimeter() << endl;
+    delete p;
+}
+```
+
+调用：
+
+```cpp
+foo(new Rect(100, 200));
+foo(new Circle(100));
+```
+
+结果：
+
+```text
+Rect 面积：100 * 200 = 20000
+Rect 周长：2 * (100 + 200) = 600
+Circle 面积：3.14 * 100 * 100 = 31400
+Circle 周长：2 * 3.14 * 100 = 628
+```
+
+重点：
+
+```text
+foo() 的参数是 Shape*，但可以接收 Rect* 和 Circle*。
+p->area() 和 p->perimeter() 会根据实际对象类型动态绑定。
+```
+
+---
+
+## 6、override 和 final
+
+`override` 用于说明派生类函数重写了基类虚函数。
+
+```cpp
+class Rect : public Shape
+{
+public:
+    double area() const override
+    {
+        return m_w * m_h;
+    }
+};
+```
+
+好处：
+
+```text
+如果函数名、参数列表、const 属性写错，编译器会报错。
+可以防止本来想重写，结果写成了新的普通函数。
+```
+
+`final` 可以修饰虚函数，也可以修饰类。
+
+修饰虚函数：
+
+```cpp
+class Base
+{
+public:
+    virtual void bar() final {}
+};
+
+class Derived : public Base
+{
+public:
+    // void bar() override {} // 错误，final 函数不能被重写
+};
+```
+
+修饰类：
+
+```cpp
+class Demo final
+{
+};
+
+// class Test : public Demo {}; // 错误，final 类不能被继承
+```
+
+总结：
+
+```text
+override：我正在重写基类虚函数，请编译器检查。
+final：到此为止，不允许继续重写或继承。
+```
+
+---
+
+## 7、虚函数的默认参数
+
+虚函数可以有默认参数，但默认参数是静态绑定的。
+
+示例：
+
+```cpp
+class Base
+{
+public:
+    virtual void foo(int x = 0)
+    {
+        cout << "Base.foo.x = " << x << endl;
+    }
+};
+
+class Derived : public Base
+{
+public:
+    void foo(int x = 1) override
+    {
+        cout << "Derived.foo.x = " << x << endl;
+    }
+};
+```
+
+通过基类指针调用：
+
+```cpp
+void bar(Base *p)
+{
+    p->foo();
+}
+
+bar(new Derived);
+```
+
+结果：
+
+```text
+调用的是 Derived::foo()。
+但是默认值使用的是 Base 中的 0。
+输出 Derived.foo.x = 0。
+```
+
+通过派生类对象调用：
+
+```cpp
+Derived d;
+d.foo();
+```
+
+结果：
+
+```text
+使用 Derived 中的默认值 1。
+输出 Derived.foo.x = 1。
+```
+
+重点：
+
+```text
+虚函数调用动态绑定。
+默认参数静态绑定。
+所以通过 Base* 调用时，默认值看 Base。
+```
+
+---
+
+## 8、虚析构函数
+
+如果一个类要作为基类，并且可能通过基类指针删除派生类对象，基类析构函数应该写成虚函数。
+
+```cpp
+class Base
+{
+public:
+    virtual ~Base()
+    {
+        cout << "~Base()" << endl;
+    }
+};
+```
+
+派生类：
+
+```cpp
+class Derived : public Base
+{
+public:
+    ~Derived()
+    {
+        cout << "~Derived()" << endl;
+    }
+};
+```
+
+使用：
+
+```cpp
+Base *p = new Derived;
+delete p;
+```
+
+如果基类析构函数是虚函数：
+
+```text
+先调用 ~Derived()
+再调用 ~Base()
+```
+
+如果基类析构函数不是虚函数：
+
+```text
+通过 Base* delete 派生类对象时，可能只调用 ~Base()。
+派生类资源可能无法释放，造成资源泄漏。
+```
+
+注意：
+
+```text
+构造函数不能是虚函数。
+在构造函数和析构函数中调用虚函数，不会发生正常的动态绑定。
+```
+
+---
+
+## 9、虚函数表和虚指针
+
+如果一个类中有虚函数，编译器会为这个类生成虚函数表。
+
+```text
+虚函数表：vtable，保存虚函数地址。
+虚指针：vptr，对象内部隐藏的指针，指向该类的虚函数表。
+```
+
+示例：
+
+```cpp
+class Base
+{
+public:
+    virtual void foo();
+    virtual void bar();
+};
+```
+
+大致结构：
+
+```text
+Base 的虚函数表：
+索引 0 -> Base::foo()
+索引 1 -> Base::bar()
+```
+
+如果派生类重写虚函数：
+
+```cpp
+class Derived : public Base
+{
+public:
+    void foo() override;
+    void bar() override;
+};
+```
+
+派生类虚函数表中对应位置会被替换：
+
+```text
+Derived 的虚函数表：
+索引 0 -> Derived::foo()
+索引 1 -> Derived::bar()
+```
+
+通过基类指针调用虚函数时：
+
+```text
+1. 先根据对象找到隐藏的 vptr。
+2. 通过 vptr 找到对象真实类型对应的 vtable。
+3. 根据虚函数在表中的索引取出函数地址。
+4. 调用对应函数。
+```
+
+所以：
+
+```text
+Base* p = new Derived;
+p->foo();
+```
+
+最终能调用 `Derived::foo()`。
+
+代价：
+
+```text
+有虚函数的对象通常会多一个隐藏的 vptr。
+对象大小会变大一点。
+虚函数调用比普通函数调用多一次查表过程。
+```
+
+---
+
+## 10、dynamic_cast 动态类型转换
+
+`dynamic_cast` 用于多态类型之间的安全向下转换。
+
+多态类型：
+
+```text
+包含虚函数的类型。
+```
+
+向上转换：
+
+```cpp
+Base *p = new Derived1;
+```
+
+派生类指针转基类指针，通常可以自动完成。
+
+向下转换：
+
+```cpp
+Derived1 *q = dynamic_cast<Derived1 *>(p);
+```
+
+基类指针转派生类指针，需要显式转换。
+
+`dynamic_cast` 的特点：
+
+```text
+运行时检查 p 实际指向的对象是不是目标类型。
+如果类型匹配，转换成功。
+如果类型不匹配，转换失败。
+```
+
+指针转换失败：
+
+```cpp
+Derived2 *q2 = dynamic_cast<Derived2 *>(p);
+if (q2 == nullptr)
+{
+    cout << "bad cast!" << endl;
+}
+```
+
+结果：
+
+```text
+指针转换失败返回 nullptr。
+```
+
+引用转换失败：
+
+```text
+引用转换失败会抛出 std::bad_cast 异常。
+```
+
+使用建议：
+
+```text
+如果必须从 Base* 判断真实派生类型，再调用派生类特有接口，可以用 dynamic_cast。
+如果能通过虚函数解决，优先使用虚函数。
+```
+
+---
+
+## 11、Day11 总结
+
+```text
+1. 多态是同一接口在不同对象上产生不同行为。
+2. C++ 运行时多态通过虚函数实现。
+3. virtual 修饰的成员函数叫虚函数。
+4. 派生类重新定义基类虚函数叫重写。
+5. 运行时多态需要通过基类指针或基类引用调用虚函数。
+6. 纯虚函数写成 virtual 函数声明 = 0。
+7. 含有纯虚函数的类是抽象类，不能直接创建对象。
+8. override 用于检查派生类是否真的重写了基类虚函数。
+9. final 可以禁止虚函数继续重写，也可以禁止类继续被继承。
+10. 虚函数默认参数是静态绑定，通过 Base* 调用时默认值看 Base。
+11. 作为多态基类时，析构函数通常要写成 virtual。
+12. 构造函数不能是虚函数。
+13. 有虚函数的类通常有 vtable，对象内部通常有 vptr。
+14. dynamic_cast 用于多态类型之间的安全向下转换。
+15. 指针 dynamic_cast 失败返回 nullptr，引用失败抛出 std::bad_cast。
+```
+
+一句话记忆：
+
+```text
+Day11 重点：virtual 让 Base* 调用时看对象真实类型；抽象类管接口，override 防写错，虚析构防泄漏，dynamic_cast 做安全向下转换。
+```
+
+---
+
+## 12、Day12：自定义异常与函数模板
+
+本节代码：
+
+```text
+2-代码/day12-自定义异常/69-自定义异常类型示例.cpp
+2-代码/day12-自定义异常/70-函数模板示例.cpp
+2-代码/day12-自定义异常/70-函数模板练习.cpp
+```
+
+### 12.1 自定义异常
+
+标准库异常的基类是 `std::exception`。自定义异常通常公开继承它，并重写 `what()` 返回错误说明。
+
+```cpp
+class MyException : public std::exception
+{
+public:
+    MyException(const char *errmsg) : errmsg(errmsg) {}
+
+    const char *what() const noexcept override
+    {
+        return errmsg;
+    }
+
+private:
+    const char *errmsg;
+};
+```
+
+抛出和捕获：
+
+```cpp
+throw MyException("this is a test!");
+
+try
+{
+    foo();
+}
+catch (const std::exception &err)
+{
+    cout << err.what() << endl;
+}
+```
+
+要点：
+
+```text
+1. throw 用于抛出异常对象。
+2. try 包住可能出错的代码，catch 负责处理异常。
+3. catch 使用 const std::exception&，既能接住基类异常，也能接住其派生类异常。
+4. 用引用捕获可避免对象拷贝，也不会发生异常对象切片。
+5. what() 返回 const char*，noexcept 表示该函数不会再抛异常。
+6. 异常对象优先按值抛出、按 const 引用捕获。
+```
+
+### 12.2 函数模板
+
+函数模板把“算法逻辑”写一次，把“数据类型”交给编译器在调用时推导。
+
+```cpp
+template <typename T>
+void Swap(T &a, T &b)
+{
+    T temp = a;
+    a = b;
+    b = temp;
+}
+```
+
+```cpp
+int x = 1;
+int y = 2;
+Swap(x, y); // T 被推导为 int
+
+double a = 1.1;
+double b = 2.2;
+Swap(a, b); // T 被推导为 double
+```
+
+多个模板参数：
+
+```cpp
+template <typename T1, typename T2>
+T1 sum(T1 a, T2 b)
+{
+    return a + b;
+}
+
+cout << sum<double, double>(1, 2.2) << endl;
+```
+
+数组长度也能作为模板参数：
+
+```cpp
+template <typename T, size_t N>
+int findValue(const T (&arr)[N], const T &value)
+{
+    for (size_t i = 0; i < N; ++i)
+    {
+        if (arr[i] == value)
+            return static_cast<int>(i);
+    }
+    return -1;
+}
+```
+
+这里的 `N` 由数组实参自动推导，因此不需要额外传入数组长度。
+
+### 12.3 Day12 总结
+
+```text
+1. 自定义异常可继承 std::exception，并重写 what()。
+2. 用 throw 抛异常，用 try/catch 处理异常。
+3. 捕获异常优先写 const 基类引用。
+4. 函数模板让同一套逻辑支持多种类型。
+5. 模板参数可以是类型，也可以是编译期常量，例如数组长度 N。
+```
+
+一句话记忆：
+
+```text
+Day12 重点：异常负责把错误交给调用方处理；函数模板负责把重复算法写成可复用的通用函数。
+```
+
+---
+
+## 13、Day13：类模板与 vector
+
+本节代码：
+
+```text
+2-代码/day13-类模板/71-类模板使用示例.cpp
+2-代码/day13-类模板/72-vector使用示例.cpp
+2-代码/day13-类模板/list.hpp
+2-代码/day13-类模板/stack.hpp
+2-代码/day13-类模板/myalgo.hpp
+```
+
+### 13.1 类模板
+
+类模板让一个类可以保存不同类型的数据。例如 `List<int>` 保存整数，`List<string>` 保存字符串。
+
+```cpp
+template <typename Type>
+class List
+{
+    // 节点数据、push_back、迭代器等都使用 Type
+};
+```
+
+使用时由尖括号指定实际类型：
+
+```cpp
+List<int> l1;
+List<string> l2;
+```
+
+`MyStack` 也被写成了类模板，并在内部复用 `List<Type>`：
+
+```cpp
+template <typename Type>
+class MyStack
+{
+private:
+    List<Type> _list;
+    int _capacity;
+};
+```
+
+别名模板可以给复杂类型起简短名字：
+
+```cpp
+template <typename Type>
+using LinkStack = MyStack<Type>;
+```
+
+### 13.2 模板实现通常放在头文件
+
+模板不是编译后只生成一份固定代码。编译器看到 `List<int>`、`List<string>` 时，才会按具体类型生成对应代码。
+
+```text
+因此模板的声明和实现通常都写在 .hpp 头文件中。
+如果把模板实现单独放进 .cpp，其他源文件在实例化模板时通常看不到实现，会导致链接错误。
+```
+
+### 13.3 迭代器与通用算法
+
+`myfind` 不关心容器具体是 `List` 还是 `string`，只要求传入的迭代器支持比较、递增和解引用。
+
+```cpp
+template <typename Iterator, typename T>
+Iterator myfind(Iterator first, Iterator last, T x)
+{
+    for (; first != last; ++first)
+    {
+        if (*first == x)
+            return first;
+    }
+    return last;
+}
+```
+
+```cpp
+auto it = myfind(l1.begin(), l1.end(), 300);
+if (it != l1.end())
+{
+    *it = 999;
+}
+```
+
+要点：
+
+```text
+begin() 指向第一个元素，end() 指向尾后位置。
+查找成功返回目标元素迭代器，失败返回 end()。
+迭代器解引用得到元素本身，因此可以读取或修改元素。
+```
+
+### 13.4 vector 动态数组
+
+`std::vector` 是标准库的动态数组，元素连续存储，支持下标访问。
+
+```cpp
+vector<int> a;                  // 空 vector
+vector<int> a2 = {1, 2, 3};    // 列表初始化
+vector<int> a3(a2.begin(), a2.end()); // 迭代器区间构造
+vector<int> a4(10);            // 10 个默认初始化元素
+vector<int> a5{10};            // 只有 1 个元素，值为 10
+```
+
+圆括号和大括号要区分：
+
+```text
+vector<int> v(10)：创建 10 个元素。
+vector<int> v{10}：创建 1 个元素，值为 10。
+```
+
+常用操作：
+
+```cpp
+a.push_back(1); // 尾部添加
+a.pop_back();   // 删除最后一个元素
+a[0] = 100;     // 下标修改
+
+auto it = find(a.begin(), a.end(), 6);
+auto it2 = find_if(a.begin(), a.end(),
+                   [](int x) { return x < 100; });
+```
+
+`size()` 与 `capacity()`：
+
+```text
+size()：当前实际元素个数。
+capacity()：已分配、可容纳的元素数量。
+push_back() 发现容量不足时，vector 会重新分配更大的连续空间。
+重新分配后，原有的迭代器、指针和引用可能失效。
+```
+
+### 13.5 Day13 总结
+
+```text
+1. 类模板让容器和数据结构支持多种元素类型。
+2. 使用时写成 类名<实际类型>，例如 List<int>。
+3. 模板的实现通常放在头文件。
+4. 迭代器把容器和算法连接起来。
+5. vector 是连续存储的动态数组，支持随机访问。
+6. vector 的 () 与 {} 初始化含义不同。
+7. vector 扩容可能使旧迭代器、指针和引用失效。
+```
+
+一句话记忆：
+
+```text
+Day13 重点：模板让类和算法按类型复用；迭代器让算法不绑定具体容器；vector 是可自动扩容的连续动态数组。
+```
