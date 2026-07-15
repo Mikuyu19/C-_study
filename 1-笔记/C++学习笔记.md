@@ -6236,3 +6236,217 @@ auto it = s.begin();
 ```text
 Day14 重点：容器决定数据如何存，迭代器定义操作范围，算法负责处理范围中的数据。
 ```
+
+---
+
+# Day 15：智能指针与多线程基础
+
+本节代码：
+
+```text
+2-代码/day15-智能指针/81-练习.cpp
+2-代码/day15-智能指针/82-unique_ptr示例.cpp
+2-代码/day15-智能指针/83-shared_ptr示例.cpp
+2-代码/day15-智能指针/84-weak_ptr示例.cpp
+2-代码/day15-智能指针/85-auto_ptr示例.cpp
+2-代码/day15-智能指针/86-线程示例.cpp
+2-代码/day15-智能指针/87-mutex使用示例.cpp
+2-代码/day15-智能指针/88-条件变量示例.cpp
+```
+
+## 1、智能指针的作用
+
+智能指针是管理动态内存的对象，位于 `<memory>`。它们在离开作用域时自动释放资源，避免手动 `new`/`delete` 容易出现的内存泄漏、重复释放和异常路径遗漏释放。
+
+```text
+unique_ptr：独占所有权。
+shared_ptr：共享所有权，使用引用计数。
+weak_ptr：弱引用，不增加 shared_ptr 的引用计数。
+```
+
+优先使用 `make_unique`、`make_shared` 创建对象，代码更简洁，异常安全性也更好。
+
+## 2、unique_ptr 独占所有权
+
+`unique_ptr` 同一时刻只能有一个指针拥有对象，因此不能直接拷贝：
+
+```cpp
+auto p = std::make_unique<int>(200);
+cout << *p << endl;
+
+// auto p2 = p; // 错误，不能拷贝
+auto p2 = std::move(p); // 所有权转移给 p2，p 变为空
+```
+
+管理数组时，类型需要写成数组形式：
+
+```cpp
+auto p = std::make_unique<int[]>(5);
+p[1] = 300;
+```
+
+`unique_ptr` 适合“一个对象只有一个明确拥有者”的场景，例如类的私有资源、工厂函数返回对象等。
+
+## 3、shared_ptr 共享所有权
+
+`shared_ptr` 通过引用计数管理对象。每复制一个 `shared_ptr`，计数加一；最后一个拥有者销毁或 `reset()` 后，对象才会被释放。
+
+```cpp
+auto p1 = std::make_shared<Demo>(400);
+cout << p1.use_count() << endl; // 1
+
+auto p2 = p1;
+cout << p1.use_count() << endl; // 2
+```
+
+常用接口：
+
+```cpp
+p.reset(new Demo(200)); // 放弃旧对象，改为管理新对象
+Demo *raw = p.get();    // 取得裸指针，但不转移所有权
+```
+
+`get()` 返回的裸指针只能临时使用，不能对它单独 `delete`，因为对象仍由 `shared_ptr` 管理。
+
+## 4、weak_ptr 弱引用
+
+`weak_ptr` 用来观察 `shared_ptr` 管理的对象，但不拥有对象，也不会增加引用计数：
+
+```cpp
+std::weak_ptr<int> gw;
+
+auto sp = std::make_shared<int>(42);
+gw = sp;
+```
+
+对象可能已被释放，因此使用前要检查：
+
+```cpp
+if (!gw.expired())
+{
+    auto sp = gw.lock();
+    cout << *sp << endl;
+}
+```
+
+```text
+expired()：判断跟踪对象是否已经释放。
+lock()：对象仍存在时返回 shared_ptr；对象已释放时返回空 shared_ptr。
+```
+
+`weak_ptr` 常用于打破两个 `shared_ptr` 互相持有形成的循环引用。
+
+## 5、auto_ptr 已废弃
+
+`auto_ptr` 复制时会悄悄转移所有权：
+
+```cpp
+auto_ptr<int> p1(new int(100));
+auto p2 = p1; // 资源转移给 p2，p1 变为空
+```
+
+这种“拷贝后原指针失效”的行为容易引发错误，`auto_ptr` 已在 C++11 中弃用，并在 C++17 中移除。现代 C++ 应使用 `unique_ptr` 替代它。
+
+## 6、thread 线程
+
+`std::thread` 用于创建并发执行的线程：
+
+```cpp
+void task(int n)
+{
+    while (n--)
+    {
+        // 执行任务
+    }
+}
+
+std::thread t(task, 5);
+t.join();
+```
+
+```text
+join()：等待线程执行结束；线程对象与执行线程汇合。
+detach()：让线程在后台独立运行；之后不能再 join。
+```
+
+线程函数参数默认会复制。需要传引用时必须使用 `std::ref`：
+
+```cpp
+int n = 5;
+std::thread t(task3, std::ref(n));
+t.join();
+```
+
+成员函数作为线程入口时，还要传入对象地址：
+
+```cpp
+Demo d;
+std::thread t(&Demo::task4, &d, std::ref(n));
+```
+
+线程对象销毁前必须 `join()` 或 `detach()`，否则程序会调用 `std::terminate()`。
+
+## 7、mutex 与条件变量
+
+多个线程同时读写共享数据会产生数据竞争。互斥锁保证同一时刻只有一个线程进入临界区：
+
+```cpp
+std::mutex m;
+int g = 0;
+
+void task()
+{
+    for (int i = 0; i < 10000; ++i)
+    {
+        std::lock_guard<std::mutex> lock(m);
+        ++g;
+    }
+}
+```
+
+`lock_guard` 使用 RAII：构造时加锁，离开作用域自动解锁，适合简单的临界区。
+
+条件变量用于线程之间等待“某个条件成立”，避免循环空转：
+
+```cpp
+std::unique_lock lock(m);
+cv.wait(lock, []
+{
+    return processed;
+});
+```
+
+生产者修改共享状态后，用 `notify_one()` 或 `notify_all()` 唤醒等待线程：
+
+```cpp
+{
+    std::lock_guard lock(m);
+    ready = true;
+}
+cv.notify_one();
+```
+
+```text
+wait(lock, predicate) 会先检查条件；条件不满足时释放锁并等待通知。
+被唤醒后会重新获得锁并再次检查条件，因此可以处理虚假唤醒。
+```
+
+## 8、Day15 总结
+
+```text
+1. 智能指针用 RAII 自动管理动态资源。
+2. unique_ptr 独占所有权，只能移动，不能拷贝。
+3. shared_ptr 用引用计数共享所有权；get() 不转移所有权。
+4. weak_ptr 不增加引用计数，使用时通过 lock() 获取临时 shared_ptr。
+5. auto_ptr 已被移除，使用 unique_ptr 替代。
+6. thread 用于并发执行，销毁前必须 join 或 detach。
+7. std::ref 用于向线程函数传递引用参数。
+8. mutex 保护共享数据；lock_guard 自动管理锁。
+9. condition_variable 用于等待和通知线程间的状态变化。
+```
+
+一句话记忆：
+
+```text
+Day15 重点：智能指针管资源生命周期，mutex 管共享数据访问，条件变量负责线程间等待与唤醒。
+```
